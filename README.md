@@ -1,3 +1,20 @@
+- [youdaonote-pull](#youdaonote-pull)
+  - [功能](#功能)
+  - [使用步骤](#使用步骤)
+    - [一、导出前的准备工作](#一导出前的准备工作)
+      - [1、安装 Git、clone 项目](#1安装-gitclone-项目)
+      - [2、安装 Python3、安装依赖模块（包）](#2安装-python3安装依赖模块包)
+      - [3、设置登录 `Cookies` 文件 `cookies.json`](#3设置登录-cookies-文件-cookiesjson)
+      - [4、设置脚本参数配置文件 `config.json`](#4设置脚本参数配置文件-configjson)
+    - [二、运行导出脚本](#二运行导出脚本)
+    - [三、多次导出](#三多次导出)
+  - [注意事项](#注意事项)
+  - [原理](#原理)
+  - [感谢（参考）](#感谢参考)
+  - [出发点](#出发点)
+  - [贡献](#贡献)
+  - [捐赠](#捐赠)
+
 # youdaonote-pull
 
 现在有道云笔记不能导出笔记，迁移笔记很麻烦。此脚本可将所有笔记下载到本地。
@@ -12,7 +29,7 @@
 
 ### 一、导出前的准备工作
 
-#### 1、安装  [Git](https://git-scm.com/downloads)、clone 项目
+#### 1、安装 [Git](https://git-scm.com/downloads)、clone 项目
 
 - 可根据 [廖雪峰 Git 教程](https://www.liaoxuefeng.com/wiki/896043488029600/896067074338496) 安装 Git，测试是否安装成功
 
@@ -44,36 +61,23 @@ python --version   # Windows
 sudo easy_install pip3      # 安装 Python3 Package Installer
 sudo pip3 install -r requirements.txt
 ```
+
 ```shell
 # Windows
 pip install -r requirements.txt
 
 # 有问题可参考 https://www.liaoxuefeng.com/wiki/1016959663602400/1017493741106496
 ```
+
 #### 3、设置登录 `Cookies` 文件 `cookies.json`
 
 ```json
 {
-    "cookies": [
-        [
-            "YNOTE_CSTK",
-            "**",
-            ".note.youdao.com",
-            "/"
-        ],
-        [
-            "YNOTE_LOGIN",
-            "**",
-            ".note.youdao.com",
-            "/"
-        ],
-        [
-            "YNOTE_SESS",
-            "**",
-            ".note.youdao.com",
-            "/"
-        ]
-    ]
+  "cookies": [
+    ["YNOTE_CSTK", "**", ".note.youdao.com", "/"],
+    ["YNOTE_LOGIN", "**", ".note.youdao.com", "/"],
+    ["YNOTE_SESS", "**", ".note.youdao.com", "/"]
+  ]
 }
 ```
 
@@ -83,7 +87,7 @@ pip install -r requirements.txt
 
 1. 在浏览器如 Chrome 中使用账号密码或者其他方式登录有道云笔记
 2. 打开 DevTools (F12)，Network 下找「主」请求（一般是第一个），再找 `Cookie`
-3. 复制对应数据替换  `**`
+3. 复制对应数据替换 `**`
 
 ![image.png](https://s2.loli.net/2022/04/04/N47KPEaSGvCpsfX.png)
 
@@ -91,26 +95,16 @@ pip install -r requirements.txt
 
 ```json
 {
-    "cookies": [
-        [
-            "YNOTE_CSTK",
-            "rR_Pejz0",
-            ".note.youdao.com",
-            "/"
-        ],
-        [
-            "YNOTE_LOGIN",
-            "3||1649054441155",
-            ".note.youdao.com",
-            "/"
-        ],
-        [
-            "YNOTE_SESS",
-            "v2|BdllbnwfaWl5RMUWOfqZ0gShf***6LqFRqB0MYfh4JLR",
-            ".note.youdao.com",
-            "/"
-        ]
+  "cookies": [
+    ["YNOTE_CSTK", "rR_Pejz0", ".note.youdao.com", "/"],
+    ["YNOTE_LOGIN", "3||1649054441155", ".note.youdao.com", "/"],
+    [
+      "YNOTE_SESS",
+      "v2|BdllbnwfaWl5RMUWOfqZ0gShf***6LqFRqB0MYfh4JLR",
+      ".note.youdao.com",
+      "/"
     ]
+  ]
 }
 ```
 
@@ -122,15 +116,20 @@ pip install -r requirements.txt
 
 ```json
 {
-    "local_dir": "",
-    "ydnote_dir": "",
-    "smms_secret_token": ""
+  "local_dir": "",
+  "ydnote_dir": "",
+  "exclude_dirs": [],
+  "smms_secret_token": ""
 }
 ```
 
-* `local_dir`：选填，本地存放导出文件的文件夹，不填则默认为当前文件夹
-* `ydnote_dir`：选填，有道云笔记指定导出文件夹名，不填则导出所有文件
-* `smms_secret_token`：选填， [SM.MS](https://sm.ms) 的 `Secret Token`（注册后 -> Dashboard -> API Token），用于上传笔记中有道云图床图片到 SM.MS 图床，不填则只下载到本地（`youdaonote-images` 文件夹），`Markdown` 中使用本地链接
+- `local_dir`：选填，本地存放导出文件的文件夹，不填则默认为当前文件夹
+
+- `ydnote_dir`：选填，有道云笔记指定导出文件夹名，不填则导出所有文件
+
+- `exclude_dirs`: 选填，导出时需要排除的文件夹，只要包含文件夹名称一部分即可，比如文件夹名称为 `prefix我的资源posfix`，则可以配置 `我的资源`
+
+- `smms_secret_token`：选填， [SM.MS](https://sm.ms) 的 `Secret Token`（注册后 -> Dashboard -> API Token），用于上传笔记中有道云图床图片到 SM.MS 图床，不填则只下载到本地（`youdaonote-images` 文件夹），`Markdown` 中使用本地链接
 
 示例：
 
@@ -138,9 +137,9 @@ pip install -r requirements.txt
 
 ```json
 {
-    "local_dir": "/Users/deppwang/Documents/youdaonote-pull/test",
-    "ydnote_dir": "",
-    "smms_secret_token": "SGSLk9yWdTe4RenXYqEPWkqVrx0Yexample"
+  "local_dir": "/Users/deppwang/Documents/youdaonote-pull/test",
+  "ydnote_dir": "",
+  "smms_secret_token": "SGSLk9yWdTe4RenXYqEPWkqVrx0Yexample"
 }
 ```
 
@@ -148,13 +147,13 @@ pip install -r requirements.txt
 
 ```json
 {
-    "local_dir": "D:/Documents/youdaonote-pull/test",
-    "ydnote_dir": "",
-    "smms_secret_token": "SGSLk9yWdTe4RenXYqEPWkqVrx0Yexample"
+  "local_dir": "D:/Documents/youdaonote-pull/test",
+  "ydnote_dir": "",
+  "smms_secret_token": "SGSLk9yWdTe4RenXYqEPWkqVrx0Yexample"
 }
 ```
 
-###  二、运行导出脚本
+### 二、运行导出脚本
 
 ```shell
 python3 pull.py  # macOS/Linux
@@ -183,6 +182,7 @@ python pull.py   # Windows
 1. 如果你自己修改脚本，注意不要将 `cookies.json` 文件 `push` 到 GitHub
 2. 如果你不是开发者，可能对上面的命令行操作有所陌生，建议按步骤慢慢操作一遍
 3. 请确认代码是否为最新，有问题请先看 [issue](https://github.com/DeppWang/youdaonote-pull/issues?q=is%3Aissue+is%3Aclosed) 是否存在，不存在再提 issue
+
    ```bash
    git pull origin master  # 更新代码
    ```
@@ -195,7 +195,7 @@ python pull.py   # Windows
 
 - [YoudaoNoteExport](https://github.com/wesley2012/YoudaoNoteExport)
 
-## 出发点 
+## 出发点
 
 原来一直是有道云笔记的忠实用户，后面接触到了「所见即所得」的 [Typora](https://typora.io/)，有点用不惯有道云笔记了，想着有什么法子能电脑本地文件和有道云笔记同步，这样电脑使用 Typora，手机使用有道云笔记。发现有道云笔记有 [Open API](http://note.youdao.com/open/developguide.html) ，打算利用提供的 API，写两个脚本，一个 pull 所有文件到本地，一个 push 本地文件到云笔记。但 API 太难用了，N 多年没更新了，问客服也没更新的意思，开发到最后发现竟然没有 Markdown 文件的接口，醉了。遂放弃。
 

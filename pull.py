@@ -25,7 +25,7 @@ NOTE_SUFFIX = '.note'
 
 
 class FileActionEnum(Enum):
-    CONTINUE = "跳过"
+    IGNORE = "忽略"
     ADD = "新增"
     UPDATE = "更新"
 
@@ -338,7 +338,8 @@ class YoudaoNoteApi(object):
         except Exception as err:
             return format(err)
         for cookie in cookies:
-            self.session.cookies.set(name=cookie[0], value=cookie[1], domain=cookie[2], path=cookie[3])
+            self.session.cookies.set(
+                name=cookie[0], value=cookie[1], domain=cookie[2], path=cookie[3])
         self.cstk = cookies[0][1] if cookies[0][0] == 'YNOTE_CSTK' else None  # cstk 用于请求时接口验证
         if not self.cstk:
             return 'YNOTE_CSTK 字段为空'
@@ -409,7 +410,8 @@ class YoudaoNoteApi(object):
         :param file_id:
         :return: response，内容为笔记字节码
         """
-        data = {'fileId': file_id, 'version': -1, 'convert': 'true', 'editorType': 1, 'cstk': self.cstk}
+        data = {'fileId': file_id, 'version': -1,
+                'convert': 'true', 'editorType': 1, 'cstk': self.cstk}
         url = self.FILE_URL.format(cstk=self.cstk)
         return self.http_post(url, data=data)
 
@@ -421,9 +423,14 @@ class YoudaoNotePull(object):
     CONFIG_PATH = 'config.json'
 
     def __init__(self):
-        self.root_local_dir = None  # 本地文件根目录
+        # 本地文件根目录
+        self.root_local_dir = None
         self.youdaonote_api = None
         self.smms_secret_token = None
+        # 导出时需要排除的文件夹
+        self.exclude_dirs = None
+        # 当前正在处理的文件的本地路径
+        self.current_note_path = None
 
     def get_ydnote_dir_id(self):
         """
@@ -437,6 +444,7 @@ class YoudaoNotePull(object):
         if error_msg:
             return '', error_msg
         self.root_local_dir = local_dir
+        self.exclude_dirs = config_dict['exclude_dirs']
         self.youdaonote_api = YoudaoNoteApi()
         error_msg = self.youdaonote_api.login_by_cookies()
         if error_msg:
@@ -462,6 +470,16 @@ class YoudaoNotePull(object):
             name = file_entry['name']
             if file_entry['dir']:
                 sub_dir = os.path.join(local_dir, name).replace('\\', '/')
+                # 排除不需要到处的文件夹（一级目录）
+                is_excluded = False
+                for item in self.exclude_dirs:
+                    if name.find(item) != -1:
+                        print("文件夹 [%s] 已排除，不需要导出。" % name)
+                        is_excluded = True
+                        break
+                if is_excluded:
+                    continue
+
                 if not os.path.exists(sub_dir):
                     os.mkdir(sub_dir)
                 self.pull_dir_by_id_recursively(id, sub_dir)
@@ -484,9 +502,10 @@ class YoudaoNotePull(object):
         except:
             return {}, '请检查「config.json」格式是否为 utf-8 格式的 json！建议使用 Sublime 编辑「config.json」'
 
-        key_list = ['local_dir', 'ydnote_dir', 'smms_secret_token']
-        if key_list != list(config_dict.keys()):
-            return {}, '请检查「config.json」的 key 是否分别为 local_dir, ydnote_dir, smms_secret_token'
+        key_list = ['local_dir', 'ydnote_dir', 'exclude_dirs', 'smms_secret_token']
+        for item in key_list:
+            if item not in config_dict.keys():
+                return {}, '请检查「config.json」的 key 是否分别为 local_dir, ydnote_dir, smms_secret_token, exclude_dirs'
         return config_dict, ''
 
     def _check_local_dir(self, local_dir, test_default_dir=None) -> (str, str):
@@ -548,13 +567,15 @@ class YoudaoNotePull(object):
         # 如果有有道云笔记是「note」类型，则提示类型
         tip = '，云笔记原格式为 note' if is_note else ''
         file_action = self._get_file_action(local_file_path, modify_time)
-        if file_action == FileActionEnum.CONTINUE:
+        if file_action == FileActionEnum.IGNORE:
             return
         if file_action == FileActionEnum.UPDATE:
             # 考虑到使用 f.write() 直接覆盖原文件，在 Windows 下报错（WinError 183），先将其删除
             os.remove(local_file_path)
         try:
-            self._pull_file(file_id, original_file_path, local_file_path, is_note, youdao_file_suffix)
+            self.current_note_path = local_file_path
+            self._pull_file(file_id, original_file_path,
+                            local_file_path, is_note, youdao_file_suffix)
             print('{}「{}」{}'.format(file_action.value, local_file_path, tip))
         except Exception as error:
             print('{}「{}」失败！请检查文件！错误提示：{}'.format(file_action.value, original_file_path, format(error)))
@@ -620,8 +641,8 @@ class YoudaoNotePull(object):
         # 如果已经存在，判断是否需要更新
         # 如果有道云笔记文件更新时间小于本地文件时间，说明没有更新，则不下载，跳过
         if modify_time < os.path.getmtime(local_file_path):
-            logging.info('此文件「%s」不更新，跳过', local_file_path)
-            return FileActionEnum.CONTINUE
+            logging.info('此文件「%s」不更新，忽略', local_file_path)
+            return FileActionEnum.IGNORE
         # 同一目录存在同名 md 和 note 文件时，后更新文件将覆盖另一个
         return FileActionEnum.UPDATE
 
@@ -712,15 +733,16 @@ class YoudaoNotePull(object):
             return ''
 
         if attach_name:
-            # 默认下载附件到 youdaonote-attachments 文件夹
-            file_dirname = 'youdaonote-attachments'
+            # 默认下载附件到 attachments 文件夹
+            file_dirname = 'attachments'
             file_suffix = attach_name
         else:
-            # 默认下载图片到 youdaonote-images 文件夹
-            file_dirname = 'youdaonote-images'
+            # 默认下载图片到 images 文件夹
+            file_dirname = 'images'
             # 后缀 png 和 jpeg 后可能出现 ; `**.png;`, 原因未知
             content_type_arr = content_type.split('/')
-            file_suffix = '.' + content_type_arr[1].replace(';', '') if len(content_type_arr) == 2 else "jpg"
+            file_suffix = '.' + \
+                content_type_arr[1].replace(';', '') if len(content_type_arr) == 2 else "jpg"
 
         local_file_dir = os.path.join(self.root_local_dir, file_dirname).replace('\\', '/')
         if not os.path.exists(local_file_dir):
@@ -738,8 +760,9 @@ class YoudaoNotePull(object):
             print(error_msg)
             return ''
 
-        # relative_file_path = self._set_relative_file_path(file_path, file_name, local_file_dir)
-        return local_file_path
+        relative_file_path = self._set_relative_file_path(
+            self.current_note_path, file_name, local_file_dir)
+        return relative_file_path
 
     def _set_relative_file_path(self, file_path, file_name, local_file_dir) -> str:
         """
