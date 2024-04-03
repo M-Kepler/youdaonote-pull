@@ -1,8 +1,9 @@
 {
-    "local_dir": "",
+    "local_dir": "../../docs/",
     "ydnote_dir": "",
     "exclude_dirs": [
-        "来自手机"
+        "来自手机",
+        "工作记录"
     ],
     "smms_secret_token": ""
 }
